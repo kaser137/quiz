@@ -7,6 +7,8 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 from functools import wraps
 from dotenv import load_dotenv
 
+from functions import exam
+
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
 )
@@ -42,7 +44,11 @@ def start(update: Update, context: CallbackContext) -> None:
 
 @send_typing_action
 def echo(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(update.message.text)
+    if update.message.text=='Новый вопрос':
+        question, answer = exam()
+        update.message.reply_text(question)
+    else:
+        update.message.reply_text(update.message.text)
 
 
 def main() -> None:
