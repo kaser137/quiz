@@ -40,7 +40,7 @@ def start(update: Update, context: CallbackContext, redis_client) -> None:
     custom_keyboard = [['Новый вопрос', 'Сдаться'],
                        ['Мой счёт', 'Обнулить счёт']]
     reply_markup = telegram.ReplyKeyboardMarkup(custom_keyboard)
-    update.message.reply_text('Здравствуйте', reply_markup=reply_markup)
+    update.message.reply_text('Здравствуйте', reply_markup=reply_markup,)
 
 
 @send_typing_action
@@ -48,19 +48,19 @@ def echo(update: Update, context: CallbackContext, redis_client) -> None:
     chat_id = update.message.chat_id
     if update.message.text == 'Новый вопрос':
         question, answer = exam()
-        redis_client.set(f'q{chat_id}', question)
         redis_client.set(f'a{chat_id}', answer)
         update.message.reply_text(question)
     elif update.message.text == 'Обнулить счёт':
         redis_client.set(f'c{chat_id}', 0)
         update.message.reply_text('Твой счёт обнулён.'
-                                  'Для следующего вопроса нажми «Новый вопрос')
+                                  'Для следующего вопроса нажми "Новый вопрос"')
     elif update.message.text == 'Мой счёт':
         count = redis_client.get(f'c{chat_id}').decode()
         update.message.reply_text(f' Твой счёт: {count}')
     elif update.message.text == 'Сдаться':
         count = int(redis_client.get(f'c{chat_id}').decode()) - 1
         redis_client.set(f'c{chat_id}', count)
+        redis_client.set(f'a{chat_id}', '')
         update.message.reply_text(f'Очень жаль :(( Твой счёт: {count}.\n'
                                   f'{redis_client.get(f"a{chat_id}").decode()}\n'
                                   'Для следующего вопроса нажми «Новый вопрос')
