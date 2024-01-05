@@ -4,7 +4,7 @@ import redis
 import telegram
 
 from telegram import Update, ChatAction
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler
 from functools import wraps
 from dotenv import load_dotenv
 
@@ -31,40 +31,61 @@ def send_action(action):
 
 send_typing_action = send_action(ChatAction.TYPING)
 
+MESSAGE = 0
+
 
 @send_typing_action
-def start(update: Update, context: CallbackContext, redis_client) -> None:
+def start(update, _, redis_client) -> None:
     chat_id = update.message.chat_id
     if not redis_client.get(f'c{chat_id}'):
         redis_client.set(f'c{chat_id}', 0)
     custom_keyboard = [['Новый вопрос', 'Сдаться'],
-                       ['Мой счёт', 'Обнулить счёт']]
+                       ['Мой счёт', 'Обнулить счёт'],
+                       ['Начать', 'Закончить']]
     reply_markup = telegram.ReplyKeyboardMarkup(custom_keyboard)
-    update.message.reply_text('Здравствуйте', reply_markup=reply_markup,)
+    update.message.reply_text('Здравствуйте', reply_markup=reply_markup)
+    return MESSAGE
 
 
 @send_typing_action
-def echo(update: Update, context: CallbackContext, redis_client) -> None:
+def new_question(update, _, redis_client):
     chat_id = update.message.chat_id
-    if update.message.text == 'Новый вопрос':
-        question, answer = exam()
-        redis_client.set(f'a{chat_id}', answer)
-        update.message.reply_text(question)
-    elif update.message.text == 'Обнулить счёт':
-        redis_client.set(f'c{chat_id}', 0)
-        update.message.reply_text('Твой счёт обнулён.'
-                                  'Для следующего вопроса нажми "Новый вопрос"')
-    elif update.message.text == 'Мой счёт':
-        count = redis_client.get(f'c{chat_id}').decode()
-        update.message.reply_text(f' Твой счёт: {count}')
-    elif update.message.text == 'Сдаться':
-        count = int(redis_client.get(f'c{chat_id}').decode()) - 1
-        redis_client.set(f'c{chat_id}', count)
-        redis_client.set(f'a{chat_id}', '')
-        update.message.reply_text(f'Очень жаль :(( Твой счёт: {count}.\n'
-                                  f'{redis_client.get(f"a{chat_id}").decode()}\n'
-                                  'Для следующего вопроса нажми «Новый вопрос')
-    elif redis_client.get(f'a{chat_id}'):
+    question, answer = exam()
+    redis_client.set(f'a{chat_id}', answer)
+    update.message.reply_text(question)
+    return MESSAGE
+
+
+@send_typing_action
+def count(update, _, redis_client):
+    chat_id = update.message.chat_id
+    count = redis_client.get(f'c{chat_id}').decode()
+    update.message.reply_text(f' Твой счёт: {count}')
+    return MESSAGE
+
+
+@send_typing_action
+def reset(update, _, redis_client):
+    chat_id = update.message.chat_id
+    redis_client.set(f'c{chat_id}', 0)
+    update.message.reply_text('Твой счёт обнулён.')
+    return MESSAGE
+
+
+@send_typing_action
+def give_up(update, _, redis_client):
+    chat_id = update.message.chat_id
+    count = int(redis_client.get(f'c{chat_id}').decode()) - 1
+    update.message.reply_text(f'Очень жаль :(( Твой счёт: {count}.\n{redis_client.get(f"a{chat_id}").decode()}\n')
+    redis_client.set(f'c{chat_id}', count)
+    redis_client.set(f'a{chat_id}', '')
+    return MESSAGE
+
+
+@send_typing_action
+def message(update, _, redis_client):
+    chat_id = update.message.chat_id
+    if redis_client.get(f'a{chat_id}'):
         right_answer = min(
             redis_client.get(f'a{chat_id}').decode().split('(')[0].casefold(),
             redis_client.get(f'a{chat_id}').decode().split('.')[0].casefold()
@@ -77,8 +98,27 @@ def echo(update: Update, context: CallbackContext, redis_client) -> None:
             redis_client.set(f'c{chat_id}', count)
             update.message.reply_text(f'Правильно! Поздравляю! Твой счёт: {count}.'
                                       'Для следующего вопроса нажми «Новый вопрос')
+
     else:
-        update.message.reply_text(update.message.text)
+        update.message.reply_text(f'{update.message.text}-это эхо, хочешь ответить на пару вопросов? '
+                                  f'Жми "Новый вопрос')
+    return MESSAGE
+
+
+@send_typing_action
+def end_quiz(update, _, redis_client):
+    chat_id = update.message.chat_id
+    count = int(redis_client.get(f'c{chat_id}').decode())
+    redis_client.set(f'a{chat_id}', '')
+    update.message.reply_text(f'Игра окончена. Твой счёт: {count}.\n'
+                              f'Нажми "Начать", чтобы ещё сыграть')
+    return ConversationHandler.END
+
+
+@send_typing_action
+def echo(update, _):
+    update.message.reply_text(f'{update.message.text}-это эхо, хочешь ответить на пару вопросов? '
+                              f'Жми "Начать", или /start')
 
 
 def main() -> None:
@@ -91,17 +131,50 @@ def main() -> None:
     redis_client = redis.Redis(host=host, password=password, port=port, username=username)
     updater = Updater(token)
     dispatcher = updater.dispatcher
+    conv_handler = ConversationHandler(
+        entry_points=[
+            CommandHandler(
+                'start',
+                callback=lambda update, _: start(update, _, redis_client)
+            ),
+            MessageHandler(
+                Filters.text('Начать'),
+                callback=lambda update, _: start(update, _, redis_client))
+        ],
+
+        states={
+            MESSAGE: [
+                MessageHandler(
+                    Filters.text & ~Filters.text(['/start', 'Новый вопрос', 'Сдаться', 'Мой счёт',
+                                                  'Обнулить счёт', 'Начать', 'Закончить']),
+                    callback=lambda update, _: message(update, _, redis_client)),
+                MessageHandler(
+                    Filters.text('Новый вопрос'),
+                    callback=lambda update, _: new_question(update, _, redis_client)),
+                MessageHandler(
+                    Filters.text('Мой счёт'),
+                    callback=lambda update, _: count(update, _, redis_client)),
+                MessageHandler(
+                    Filters.text('Обнулить счёт'),
+                    callback=lambda update, _: reset(update, _, redis_client)),
+                MessageHandler(
+                    Filters.text('Сдаться'),
+                    callback=lambda update, _: give_up(update, _, redis_client))
+            ]
+        },
+
+        fallbacks=[MessageHandler(
+            Filters.text('Закончить'),
+            callback=lambda update, _: end_quiz(update, _, redis_client)),
+        ]
+    )
     dispatcher.add_handler(
-        CommandHandler(
-            "start",
-            callback=lambda update, _: start(update, _, redis_client)
-        )
+        conv_handler
     )
     dispatcher.add_handler(
         MessageHandler(
-            Filters.text & ~Filters.text('/start'),
-            callback=lambda update, _: echo(update, _, redis_client)
-        )
+            Filters.text & ~Filters.text(['/start', 'Начать']),
+            echo)
     )
 
     updater.start_polling()
