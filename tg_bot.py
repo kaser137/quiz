@@ -3,8 +3,8 @@ import os
 import redis
 import telegram
 
-from telegram import Update, ChatAction
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler
+from telegram import ChatAction
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 from functools import wraps
 from dotenv import load_dotenv
 
