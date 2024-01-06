@@ -137,9 +137,6 @@ def main() -> None:
                 MessageHandler(
                     Filters.text('Мой счёт'),
                     callback=lambda update, _: count(update, _, redis_client)),
-                # MessageHandler(
-                #     Filters.text('Обнулить счёт'),
-                #     callback=lambda update, _: reset(update, _, redis_client)),
                 MessageHandler(
                     Filters.text('Сдаться'),
                     callback=lambda update, _: give_up(update, _, redis_client))
@@ -154,11 +151,6 @@ def main() -> None:
     dispatcher.add_handler(
         conv_handler
     )
-    # dispatcher.add_handler(
-    #     MessageHandler(
-    #         Filters.text & ~Filters.text(['/start', 'Начать']),
-    #         echo)
-    # )
 
     updater.start_polling()
     updater.idle()
