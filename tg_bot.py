@@ -2,17 +2,11 @@ import logging
 import os
 import redis
 import telegram
-
 from telegram import ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 from functools import wraps
 from dotenv import load_dotenv
-
 from service_functions import choosing_quest
-
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +37,7 @@ def start(update, _, redis_client) -> None:
                        ['Мой счёт', 'Закончить'],]
     reply_markup = telegram.ReplyKeyboardMarkup(custom_keyboard)
     update.message.reply_text('Здравствуйте', reply_markup=reply_markup)
+    logger.info('Quiz is started')
     return MESSAGE
 
 
@@ -52,14 +47,17 @@ def new_question(update, _, redis_client):
     question, answer = choosing_quest()
     redis_client.set(f'a{chat_id}', answer)
     update.message.reply_text(question)
+    logger.info(f'{update.message.from_user.first_name} requests the new question')
     return MESSAGE
 
 
 @send_typing_action
 def count(update, _, redis_client):
     chat_id = update.message.chat_id
+    # user = update.message.from_user.first_name
     count = redis_client.get(f'c{chat_id}').decode()
     update.message.reply_text(f' Твой счёт: {count}')
+    logger.info(f'{update.message.from_user.first_name} requests his count')
     return MESSAGE
 
 
@@ -73,6 +71,7 @@ def give_up(update, _, redis_client):
     redis_client.set(f'a{chat_id}', answer)
     redis_client.set(f'c{chat_id}', 0)
     update.message.reply_text(f'Правильный ответ: {right_answer}\nТвой счёт = {count}\nСледующий вопрос:\n{question}')
+    logger.info(f'{update.message.from_user.first_name} gave up')
     return MESSAGE
 
 
@@ -95,6 +94,7 @@ def answer_handler(update, _, redis_client):
 
     else:
         update.message.reply_text('Зачем зря писать? Жми "Новый вопрос"')
+    logger.info(f'{update.message.from_user.first_name} is trying to take the answer')
     return MESSAGE
 
 
@@ -105,10 +105,14 @@ def end_quiz(update, _, redis_client):
     redis_client.set(f'a{chat_id}', '')
     update.message.reply_text(f'Игра окончена. Твой счёт: {count}.\n'
                               f'Нажми /start, чтобы ещё сыграть')
+    logger.info(f'{update.message.from_user.first_name} has finished')
     return ConversationHandler.END
 
 
 def main() -> None:
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+    )
     load_dotenv()
     token = os.getenv('TG_BOT_TOKEN')
     password = os.getenv('REDIS_PASSWORD')
