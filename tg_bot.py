@@ -77,7 +77,7 @@ def give_up(update, _, redis_client):
 
 
 @send_typing_action
-def message(update, _, redis_client):
+def answer_handler(update, _, redis_client):
     chat_id = update.message.chat_id
     if redis_client.get(f'a{chat_id}'):
         right_answer = min(
@@ -130,7 +130,7 @@ def main() -> None:
             MESSAGE: [
                 MessageHandler(
                     Filters.text & ~Filters.text(['/start', 'Новый вопрос', 'Сдаться', 'Мой счёт', 'Закончить']),
-                    callback=lambda update, _: message(update, _, redis_client)),
+                    callback=lambda update, _: answer_handler(update, _, redis_client)),
                 MessageHandler(
                     Filters.text('Новый вопрос'),
                     callback=lambda update, _: new_question(update, _, redis_client)),
