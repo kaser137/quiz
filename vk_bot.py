@@ -8,6 +8,17 @@ from vk_api.utils import get_random_id
 from service_functions import choosing_quest
 
 
+def make_keyboard():
+    keyboard = VkKeyboard()
+
+    keyboard.add_button('Новый вопрос', color=VkKeyboardColor.SECONDARY)
+    keyboard.add_button('Сдаться', color=VkKeyboardColor.SECONDARY)
+
+    keyboard.add_line()
+    keyboard.add_button('Мой счёт', color=VkKeyboardColor.SECONDARY)
+    return keyboard
+
+
 def main():
     load_dotenv()
     token = os.getenv('VK_KEY')
@@ -19,14 +30,7 @@ def main():
     vk_session = vk_api.VkApi(token=token)
     vk = vk_session.get_api()
     longpoll = VkLongPoll(vk_session)
-
-    keyboard = VkKeyboard()
-
-    keyboard.add_button('Новый вопрос', color=VkKeyboardColor.SECONDARY)
-    keyboard.add_button('Сдаться', color=VkKeyboardColor.SECONDARY)
-
-    keyboard.add_line()  # Переход на вторую строку
-    keyboard.add_button('Мой счёт', color=VkKeyboardColor.SECONDARY)
+    keyboard = make_keyboard()
 
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
