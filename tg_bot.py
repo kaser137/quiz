@@ -8,7 +8,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Conve
 from functools import wraps
 from dotenv import load_dotenv
 
-from functions import exam
+from service_functions import exam
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
