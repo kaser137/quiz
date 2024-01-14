@@ -80,9 +80,10 @@ def main():
                 )
 
             elif redis_client.get(f'a{chat_id}'):
+                full_answer = redis_client.get(f'a{chat_id}').decode()
                 right_answer = min(
-                    redis_client.get(f'a{chat_id}').decode().split('(')[0].casefold(),
-                    redis_client.get(f'a{chat_id}').decode().split('.')[0].casefold()
+                    full_answer.split('(')[0].casefold(),
+                    full_answer.split('.')[0].casefold()
                 )
                 if (event.text.casefold().find(right_answer) == -1 and
                         right_answer.find(event.text.casefold()) == -1):

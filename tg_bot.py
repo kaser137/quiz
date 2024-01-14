@@ -79,9 +79,10 @@ def give_up(update, _, redis_client):
 def answer_handler(update, _, redis_client):
     chat_id = update.message.chat_id
     if redis_client.get(f'a{chat_id}'):
+        full_answer = redis_client.get(f'a{chat_id}').decode()
         right_answer = min(
-            redis_client.get(f'a{chat_id}').decode().split('(')[0].casefold(),
-            redis_client.get(f'a{chat_id}').decode().split('.')[0].casefold()
+            full_answer.split('(')[0].casefold(),
+            full_answer.split('.')[0].casefold()
         )
         if (update.message.text.casefold().find(right_answer) == -1 and
                 right_answer.find(update.message.text.casefold()) == -1):
