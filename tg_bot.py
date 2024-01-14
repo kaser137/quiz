@@ -8,7 +8,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Conve
 from functools import wraps
 from dotenv import load_dotenv
 
-from service_functions import exam
+from service_functions import choosing_quest
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -49,7 +49,7 @@ def start(update, _, redis_client) -> None:
 @send_typing_action
 def new_question(update, _, redis_client):
     chat_id = update.message.chat_id
-    question, answer = exam()
+    question, answer = choosing_quest()
     redis_client.set(f'a{chat_id}', answer)
     update.message.reply_text(question)
     return MESSAGE
@@ -69,7 +69,7 @@ def give_up(update, _, redis_client):
     count = int(redis_client.get(f'c{chat_id}').decode())
     right_answer = redis_client.get(f'a{chat_id}').decode() if redis_client.get(f'a{chat_id}') else (
         'Ты не выбрал вопрос')
-    question, answer = exam()
+    question, answer = choosing_quest()
     redis_client.set(f'a{chat_id}', answer)
     redis_client.set(f'c{chat_id}', 0)
     update.message.reply_text(f'Правильный ответ: {right_answer}\nТвой счёт = {count}\nСледующий вопрос:\n{question}')
