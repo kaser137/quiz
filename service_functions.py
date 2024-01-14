@@ -2,7 +2,7 @@ import os
 import random
 
 
-def exam():
+def choosing_quest():
     files_list = sorted(os.listdir('quiz-questions'))
     file_for_open = random.choice(files_list)
     quiz = []
