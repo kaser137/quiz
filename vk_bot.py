@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.utils import get_random_id
-from service_functions import choosing_quest
+from receiving_quest import choosing_quest
 
 
 def make_keyboard():

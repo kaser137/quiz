@@ -6,7 +6,7 @@ from telegram import ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 from functools import wraps
 from dotenv import load_dotenv
-from service_functions import choosing_quest
+from receiving_quest import choosing_quest
 
 logger = logging.getLogger(__name__)
 
