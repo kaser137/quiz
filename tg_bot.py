@@ -54,7 +54,6 @@ def new_question(update, _, redis_client, quiz_files_path):
 @send_typing_action
 def count(update, _, redis_client):
     chat_id = update.message.chat_id
-    # user = update.message.from_user.first_name
     count = redis_client.get(f'c{chat_id}').decode()
     update.message.reply_text(f' Твой счёт: {count}')
     logger.info(f'{update.message.from_user.first_name} requests his count')
@@ -78,8 +77,8 @@ def give_up(update, _, redis_client, quiz_files_path):
 @send_typing_action
 def answer_handler(update, _, redis_client):
     chat_id = update.message.chat_id
-    if redis_client.get(f'a{chat_id}'):
-        full_answer = redis_client.get(f'a{chat_id}').decode()
+    full_answer = redis_client.get(f'a{chat_id}').decode()
+    if full_answer:
         right_answer = min(
             full_answer.split('(')[0].casefold(),
             full_answer.split('.')[0].casefold()

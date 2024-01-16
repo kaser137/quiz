@@ -36,6 +36,7 @@ def main():
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
             chat_id = event.user_id
+            full_answer = redis_client.get(f'a{chat_id}').decode()
             if not redis_client.get(f'c{chat_id}'):
                 redis_client.set(f'c{chat_id}', 0)
 
@@ -80,8 +81,7 @@ def main():
                     keyboard=keyboard.get_keyboard()
                 )
 
-            elif redis_client.get(f'a{chat_id}'):
-                full_answer = redis_client.get(f'a{chat_id}').decode()
+            elif full_answer:
                 right_answer = min(
                     full_answer.split('(')[0].casefold(),
                     full_answer.split('.')[0].casefold()
