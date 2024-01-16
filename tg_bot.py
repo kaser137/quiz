@@ -42,9 +42,9 @@ def start(update, _, redis_client) -> None:
 
 
 @send_typing_action
-def new_question(update, _, redis_client):
+def new_question(update, _, redis_client, quiz_files_path):
     chat_id = update.message.chat_id
-    question, answer = choosing_quest()
+    question, answer = choosing_quest(quiz_files_path)
     redis_client.set(f'a{chat_id}', answer)
     update.message.reply_text(question)
     logger.info(f'{update.message.from_user.first_name} requests the new question')
@@ -62,12 +62,12 @@ def count(update, _, redis_client):
 
 
 @send_typing_action
-def give_up(update, _, redis_client):
+def give_up(update, _, redis_client, quiz_files_path):
     chat_id = update.message.chat_id
     count = int(redis_client.get(f'c{chat_id}').decode())
     right_answer = redis_client.get(f'a{chat_id}').decode() if redis_client.get(f'a{chat_id}') else (
         'Ты не выбрал вопрос')
-    question, answer = choosing_quest()
+    question, answer = choosing_quest(quiz_files_path)
     redis_client.set(f'a{chat_id}', answer)
     redis_client.set(f'c{chat_id}', 0)
     update.message.reply_text(f'Правильный ответ: {right_answer}\nТвой счёт = {count}\nСледующий вопрос:\n{question}')
@@ -120,6 +120,7 @@ def main() -> None:
     username = os.getenv('REDIS_USERNAME')
     host = os.getenv('REDIS_HOST')
     port = os.getenv('REDIS_PORT')
+    quiz_files_path = os.getenv('QUIZ_FILES_PATH', 'quiz-questions')
     redis_client = redis.Redis(host=host, password=password, port=port, username=username)
     updater = Updater(token)
     dispatcher = updater.dispatcher
@@ -138,13 +139,13 @@ def main() -> None:
                     callback=lambda update, _: answer_handler(update, _, redis_client)),
                 MessageHandler(
                     Filters.text('Новый вопрос'),
-                    callback=lambda update, _: new_question(update, _, redis_client)),
+                    callback=lambda update, _: new_question(update, _, redis_client, quiz_files_path)),
                 MessageHandler(
                     Filters.text('Мой счёт'),
                     callback=lambda update, _: count(update, _, redis_client)),
                 MessageHandler(
                     Filters.text('Сдаться'),
-                    callback=lambda update, _: give_up(update, _, redis_client))
+                    callback=lambda update, _: give_up(update, _, redis_client, quiz_files_path))
             ]
         },
 
