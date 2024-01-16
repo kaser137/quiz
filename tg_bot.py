@@ -63,9 +63,9 @@ def count(update, _, redis_client):
 @send_typing_action
 def give_up(update, _, redis_client):
     chat_id = update.message.chat_id
+    full_answer = redis_client.get(f'a{chat_id}').decode()
     count = int(redis_client.get(f'c{chat_id}').decode())
-    right_answer = redis_client.get(f'a{chat_id}').decode() if redis_client.get(f'a{chat_id}') else (
-        'Ты не выбрал вопрос')
+    right_answer = full_answer if full_answer else 'Ты не выбрал вопрос'
     question, answer = choosing_quest()
     redis_client.set(f'a{chat_id}', answer)
     redis_client.set(f'c{chat_id}', 0)

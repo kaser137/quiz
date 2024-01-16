@@ -38,7 +38,6 @@ def main():
             full_answer = redis_client.get(f'a{chat_id}').decode()
             if not redis_client.get(f'c{chat_id}'):
                 redis_client.set(f'c{chat_id}', 0)
-
             if event.text == 'Начать':
                 vk.messages.send(
                     user_id=event.user_id,
@@ -46,11 +45,10 @@ def main():
                     random_id=get_random_id(),
                     keyboard=keyboard.get_keyboard()
                 )
-
+                continue
             elif event.text == 'Сдаться':
                 count = int(redis_client.get(f'c{chat_id}').decode())
-                right_answer = redis_client.get(f'a{chat_id}').decode() if redis_client.get(f'a{chat_id}') else (
-                    'Ты не выбрал вопрос')
+                right_answer = full_answer if full_answer else 'Ты не выбрал вопрос'
                 question, answer = choosing_quest()
                 redis_client.set(f'a{chat_id}', answer)
                 redis_client.set(f'c{chat_id}', 0)
@@ -60,7 +58,7 @@ def main():
                     random_id=get_random_id(),
                     keyboard=keyboard.get_keyboard()
                 )
-
+                continue
             elif event.text == 'Новый вопрос':
                 question, answer = choosing_quest()
                 redis_client.set(f'a{chat_id}', answer)
@@ -70,7 +68,7 @@ def main():
                     random_id=get_random_id(),
                     keyboard=keyboard.get_keyboard()
                 )
-
+                continue
             elif event.text == 'Мой счёт':
                 count = int(redis_client.get(f'c{chat_id}').decode())
                 vk.messages.send(
@@ -79,35 +77,33 @@ def main():
                     random_id=get_random_id(),
                     keyboard=keyboard.get_keyboard()
                 )
-
-            elif full_answer:
-                right_answer = min(
-                    full_answer.split('(')[0].casefold(),
-                    full_answer.split('.')[0].casefold()
-                )
-                if (event.text.casefold().find(right_answer) == -1 and
-                        right_answer.find(event.text.casefold()) == -1):
-                    vk.messages.send(
-                        user_id=event.user_id,
-                        message='Неправильно… Попробуешь ещё раз?',
-                        random_id=get_random_id(),
-                        keyboard=keyboard.get_keyboard()
-                    )
-                else:
-                    count = int(redis_client.get(f'c{chat_id}').decode()) + 1
-                    redis_client.set(f'c{chat_id}', count)
-                    vk.messages.send(
-                        user_id=event.user_id,
-                        message=f'Правильно! Поздравляю! Твой счёт: {count}. '
-                                f'Для следующего вопроса нажми "Новый вопрос"',
-                        random_id=get_random_id(),
-                        keyboard=keyboard.get_keyboard()
-                    )
-
-            else:
+                continue
+            elif not full_answer:
                 vk.messages.send(
                     user_id=event.user_id,
                     message='Зачем зря писать? Жми "Новый вопрос"',
+                    random_id=get_random_id(),
+                    keyboard=keyboard.get_keyboard()
+                )
+            right_answer = min(
+                full_answer.split('(')[0].casefold(),
+                full_answer.split('.')[0].casefold()
+            )
+            if (event.text.casefold().find(right_answer) == -1 and
+                    right_answer.find(event.text.casefold()) == -1):
+                vk.messages.send(
+                    user_id=event.user_id,
+                    message='Неправильно… Попробуешь ещё раз?',
+                    random_id=get_random_id(),
+                    keyboard=keyboard.get_keyboard()
+                )
+            else:
+                count = int(redis_client.get(f'c{chat_id}').decode()) + 1
+                redis_client.set(f'c{chat_id}', count)
+                vk.messages.send(
+                    user_id=event.user_id,
+                    message=f'Правильно! Поздравляю! Твой счёт: {count}. '
+                            f'Для следующего вопроса нажми "Новый вопрос"',
                     random_id=get_random_id(),
                     keyboard=keyboard.get_keyboard()
                 )
