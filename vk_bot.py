@@ -26,7 +26,6 @@ def main():
     username = os.getenv('REDIS_USERNAME')
     host = os.getenv('REDIS_HOST')
     port = os.getenv('REDIS_PORT')
-    quiz_files_path = os.getenv('QUIZ_FILES_PATH', 'quiz-questions')
     redis_client = redis.Redis(host=host, password=password, port=port, username=username)
     vk_session = vk_api.VkApi(token=token)
     vk = vk_session.get_api()
@@ -52,7 +51,7 @@ def main():
                 count = int(redis_client.get(f'c{chat_id}').decode())
                 right_answer = redis_client.get(f'a{chat_id}').decode() if redis_client.get(f'a{chat_id}') else (
                     'Ты не выбрал вопрос')
-                question, answer = choosing_quest(quiz_files_path)
+                question, answer = choosing_quest()
                 redis_client.set(f'a{chat_id}', answer)
                 redis_client.set(f'c{chat_id}', 0)
                 vk.messages.send(
@@ -63,7 +62,7 @@ def main():
                 )
 
             elif event.text == 'Новый вопрос':
-                question, answer = choosing_quest(quiz_files_path)
+                question, answer = choosing_quest()
                 redis_client.set(f'a{chat_id}', answer)
                 vk.messages.send(
                     user_id=event.user_id,
