@@ -119,7 +119,6 @@ def main() -> None:
     username = os.getenv('REDIS_USERNAME')
     host = os.getenv('REDIS_HOST')
     port = os.getenv('REDIS_PORT')
-    quiz_files_path = os.getenv('QUIZ_FILES_PATH', 'quiz-questions')
     redis_client = redis.Redis(host=host, password=password, port=port, username=username)
     updater = Updater(token)
     dispatcher = updater.dispatcher
