@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.utils import get_random_id
-from receiving_quest import choosing_quest
+from receive_quest import choose_quest
 
 
 def make_keyboard():
@@ -49,7 +49,7 @@ def main():
             elif event.text == 'Сдаться':
                 count = int(redis_client.get(f'c{chat_id}').decode())
                 right_answer = full_answer if full_answer else 'Ты не выбрал вопрос'
-                question, answer = choosing_quest()
+                question, answer = choose_quest()
                 redis_client.set(f'a{chat_id}', answer)
                 redis_client.set(f'c{chat_id}', 0)
                 vk.messages.send(
@@ -60,7 +60,7 @@ def main():
                 )
                 continue
             elif event.text == 'Новый вопрос':
-                question, answer = choosing_quest()
+                question, answer = choose_quest()
                 redis_client.set(f'a{chat_id}', answer)
                 vk.messages.send(
                     user_id=event.user_id,

@@ -6,7 +6,7 @@ from telegram import ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 from functools import wraps
 from dotenv import load_dotenv
-from receiving_quest import choosing_quest
+from receive_quest import choose_quest
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def start(update, _, redis_client) -> None:
 @send_typing_action
 def new_question(update, _, redis_client):
     chat_id = update.message.chat_id
-    question, answer = choosing_quest()
+    question, answer = choose_quest()
     redis_client.set(f'a{chat_id}', answer)
     update.message.reply_text(question)
     logger.info(f'{update.message.from_user.first_name} requests the new question')
@@ -66,7 +66,7 @@ def give_up(update, _, redis_client):
     full_answer = redis_client.get(f'a{chat_id}').decode()
     count = int(redis_client.get(f'c{chat_id}').decode())
     right_answer = full_answer if full_answer else 'Ты не выбрал вопрос'
-    question, answer = choosing_quest()
+    question, answer = choose_quest()
     redis_client.set(f'a{chat_id}', answer)
     redis_client.set(f'c{chat_id}', 0)
     update.message.reply_text(f'Правильный ответ: {right_answer}\nТвой счёт = {count}\nСледующий вопрос:\n{question}')

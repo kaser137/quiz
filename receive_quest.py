@@ -22,7 +22,7 @@ for file in files_list:
             i += 1
 
 
-def choosing_quest():
+def choose_quest():
     random_pair = random.choice(quiz)
     question = random_pair['question']
     answer = random_pair['answer']
