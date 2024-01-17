@@ -19,7 +19,7 @@ def make_keyboard():
     return keyboard
 
 
-def main():
+def get_settings():
     load_dotenv()
     token = os.getenv('VK_KEY')
     password = os.getenv('REDIS_PASSWORD')
@@ -30,6 +30,11 @@ def main():
     vk_session = vk_api.VkApi(token=token)
     vk = vk_session.get_api()
     longpoll = VkLongPoll(vk_session)
+    return redis_client, vk, longpoll
+
+
+def main():
+    redis_client, vk, longpoll = get_settings()
     keyboard = make_keyboard()
 
     for event in longpoll.listen():
