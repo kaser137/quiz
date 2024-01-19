@@ -8,18 +8,87 @@ from vk_api.utils import get_random_id
 from receive_quest import choose_quest
 
 
-def make_keyboard():
-    keyboard = VkKeyboard()
+def send_message(event, text, **kwargs):
+    vk = kwargs['vk']
+    keyboard = kwargs['keyboard']
+    vk.messages.send(
+        user_id=event.user_id,
+        message=text,
+        random_id=get_random_id(),
+        keyboard=keyboard.get_keyboard()
+    )
 
-    keyboard.add_button('Новый вопрос', color=VkKeyboardColor.SECONDARY)
-    keyboard.add_button('Сдаться', color=VkKeyboardColor.SECONDARY)
 
-    keyboard.add_line()
-    keyboard.add_button('Мой счёт', color=VkKeyboardColor.SECONDARY)
-    return keyboard
+def begin(event, **kwargs):
+    vk = kwargs['vk']
+    keyboard = kwargs['keyboard']
+    message = 'Давай сыграем. Жми "Новый вопрос"'
+    send_message(event, message, vk=vk, keyboard=keyboard)
 
 
-def get_settings():
+def give_up(event, **kwargs):
+    vk = kwargs['vk']
+    keyboard = kwargs['keyboard']
+    chat_id = event.user_id
+    redis_client = kwargs['redis_client']
+    full_answer = redis_client.get(f'a{chat_id}').decode()
+    count = int(redis_client.get(f'c{chat_id}').decode())
+    right_answer = full_answer if full_answer else 'Ты не выбрал вопрос'
+    question, answer = choose_quest()
+    redis_client.set(f'a{chat_id}', answer)
+    redis_client.set(f'c{chat_id}', 0)
+    message = f'Правильный ответ: {right_answer}\nТвой счёт = {count}\nСледующий вопрос:\n{question}'
+    send_message(event, message, vk=vk, keyboard=keyboard)
+
+
+def new_question(event, **kwargs):
+    vk = kwargs['vk']
+    keyboard = kwargs['keyboard']
+    chat_id = event.user_id
+    redis_client = kwargs['redis_client']
+    question, answer = choose_quest()
+    redis_client.set(f'a{chat_id}', answer)
+    message = f'{question}'
+    send_message(event, message, vk=vk, keyboard=keyboard)
+
+
+def count(event, **kwargs):
+    vk = kwargs['vk']
+    keyboard = kwargs['keyboard']
+    chat_id = event.user_id
+    redis_client = kwargs['redis_client']
+    count = int(redis_client.get(f'c{chat_id}').decode())
+    message = f'Твой счёт: {count}'
+    send_message(event, message, vk=vk, keyboard=keyboard)
+
+
+def answer(event, **kwargs):
+    vk = kwargs['vk']
+    keyboard = kwargs['keyboard']
+    chat_id = event.user_id
+    redis_client = kwargs['redis_client']
+    full_answer = redis_client.get(f'a{chat_id}').decode()
+    if not full_answer:
+        message = 'Зачем зря писать? Жми "Новый вопрос"'
+        send_message(event, message, vk=vk, keyboard=keyboard)
+
+    right_answer = min(
+        full_answer.split('(')[0].casefold(),
+        full_answer.split('.')[0].casefold()
+    )
+    if (event.text.casefold().find(right_answer) == -1 and
+            right_answer.find(event.text.casefold()) == -1):
+        message = 'Неправильно… Попробуешь ещё раз?'
+        send_message(event, message, vk=vk, keyboard=keyboard)
+    else:
+        count = int(redis_client.get(f'c{chat_id}').decode()) + 1
+        redis_client.set(f'c{chat_id}', count)
+        message = f'Правильно! Поздравляю! Твой счёт: {count}. '
+        f'Для следующего вопроса нажми "Новый вопрос"'
+        send_message(event, message, vk=vk, keyboard=keyboard)
+
+
+def main():
     load_dotenv()
     token = os.getenv('VK_KEY')
     password = os.getenv('REDIS_PASSWORD')
@@ -30,88 +99,24 @@ def get_settings():
     vk_session = vk_api.VkApi(token=token)
     vk = vk_session.get_api()
     longpoll = VkLongPoll(vk_session)
-    return redis_client, vk, longpoll
-
-
-def main():
-    redis_client, vk, longpoll = get_settings()
-    keyboard = make_keyboard()
+    keyboard = VkKeyboard()
+    keyboard.add_button('Новый вопрос', color=VkKeyboardColor.SECONDARY)
+    keyboard.add_button('Сдаться', color=VkKeyboardColor.SECONDARY)
+    keyboard.add_line()
+    keyboard.add_button('Мой счёт', color=VkKeyboardColor.SECONDARY)
 
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-            chat_id = event.user_id
-            full_answer = redis_client.get(f'a{chat_id}').decode()
-            if not redis_client.get(f'c{chat_id}'):
-                redis_client.set(f'c{chat_id}', 0)
             if event.text == 'Начать':
-                vk.messages.send(
-                    user_id=event.user_id,
-                    message='Давай сыграем. Жми "Новый вопрос"',
-                    random_id=get_random_id(),
-                    keyboard=keyboard.get_keyboard()
-                )
-                continue
+                begin(event, redis_client=redis_client, vk=vk, keyboard=keyboard)
             elif event.text == 'Сдаться':
-                count = int(redis_client.get(f'c{chat_id}').decode())
-                right_answer = full_answer if full_answer else 'Ты не выбрал вопрос'
-                question, answer = choose_quest()
-                redis_client.set(f'a{chat_id}', answer)
-                redis_client.set(f'c{chat_id}', 0)
-                vk.messages.send(
-                    user_id=event.user_id,
-                    message=f'Правильный ответ: {right_answer}\nТвой счёт = {count}\nСледующий вопрос:\n{question}',
-                    random_id=get_random_id(),
-                    keyboard=keyboard.get_keyboard()
-                )
-                continue
+                give_up(event, redis_client=redis_client, vk=vk, keyboard=keyboard)
             elif event.text == 'Новый вопрос':
-                question, answer = choose_quest()
-                redis_client.set(f'a{chat_id}', answer)
-                vk.messages.send(
-                    user_id=event.user_id,
-                    message=f'{question}',
-                    random_id=get_random_id(),
-                    keyboard=keyboard.get_keyboard()
-                )
-                continue
+                new_question(event, redis_client=redis_client, vk=vk, keyboard=keyboard)
             elif event.text == 'Мой счёт':
-                count = int(redis_client.get(f'c{chat_id}').decode())
-                vk.messages.send(
-                    user_id=event.user_id,
-                    message=f'Твой счёт: {count}',
-                    random_id=get_random_id(),
-                    keyboard=keyboard.get_keyboard()
-                )
-                continue
-            elif not full_answer:
-                vk.messages.send(
-                    user_id=event.user_id,
-                    message='Зачем зря писать? Жми "Новый вопрос"',
-                    random_id=get_random_id(),
-                    keyboard=keyboard.get_keyboard()
-                )
-            right_answer = min(
-                full_answer.split('(')[0].casefold(),
-                full_answer.split('.')[0].casefold()
-            )
-            if (event.text.casefold().find(right_answer) == -1 and
-                    right_answer.find(event.text.casefold()) == -1):
-                vk.messages.send(
-                    user_id=event.user_id,
-                    message='Неправильно… Попробуешь ещё раз?',
-                    random_id=get_random_id(),
-                    keyboard=keyboard.get_keyboard()
-                )
+                count(event, redis_client=redis_client, vk=vk, keyboard=keyboard)
             else:
-                count = int(redis_client.get(f'c{chat_id}').decode()) + 1
-                redis_client.set(f'c{chat_id}', count)
-                vk.messages.send(
-                    user_id=event.user_id,
-                    message=f'Правильно! Поздравляю! Твой счёт: {count}. '
-                            f'Для следующего вопроса нажми "Новый вопрос"',
-                    random_id=get_random_id(),
-                    keyboard=keyboard.get_keyboard()
-                )
+                answer(event, redis_client=redis_client, vk=vk, keyboard=keyboard)
 
 
 if __name__ == '__main__':
