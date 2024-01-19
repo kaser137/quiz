@@ -6,6 +6,8 @@ from telegram import ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 from functools import wraps
 from dotenv import load_dotenv
+
+from parse_quiz_files import parse_quiz_files
 from receive_quest import choose_quest
 
 logger = logging.getLogger(__name__)
@@ -42,9 +44,9 @@ def start(update, _, redis_client) -> None:
 
 
 @send_typing_action
-def new_question(update, _, redis_client):
+def new_question(update, _, redis_client, quiz):
     chat_id = update.message.chat_id
-    question, answer = choose_quest()
+    question, answer = choose_quest(quiz)
     redis_client.set(f'a{chat_id}', answer)
     update.message.reply_text(question)
     logger.info(f'{update.message.from_user.first_name} requests the new question')
@@ -61,14 +63,13 @@ def count(update, _, redis_client):
 
 
 @send_typing_action
-def give_up(update, _, redis_client):
+def give_up(update, _, redis_client, quiz):
     chat_id = update.message.chat_id
     full_answer = redis_client.get(f'a{chat_id}').decode()
     count = int(redis_client.get(f'c{chat_id}').decode())
     right_answer = full_answer if full_answer else 'Ты не выбрал вопрос'
-    question, answer = choose_quest()
+    question, answer = choose_quest(quiz)
     redis_client.set(f'a{chat_id}', answer)
-    redis_client.set(f'c{chat_id}', 0)
     update.message.reply_text(f'Правильный ответ: {right_answer}\nТвой счёт = {count}\nСледующий вопрос:\n{question}')
     logger.info(f'{update.message.from_user.first_name} gave up')
     return MESSAGE
@@ -103,6 +104,7 @@ def end_quiz(update, _, redis_client):
     chat_id = update.message.chat_id
     count = int(redis_client.get(f'c{chat_id}').decode())
     redis_client.set(f'a{chat_id}', '')
+    # redis_client.set(f'c{chat_id}', 0)
     update.message.reply_text(f'Игра окончена. Твой счёт: {count}.\n'
                               f'Нажми /start, чтобы ещё сыграть')
     logger.info(f'{update.message.from_user.first_name} has finished')
@@ -114,6 +116,7 @@ def main() -> None:
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
     )
     load_dotenv()
+    quiz = parse_quiz_files()
     token = os.getenv('TG_BOT_TOKEN')
     password = os.getenv('REDIS_PASSWORD')
     username = os.getenv('REDIS_USERNAME')
@@ -137,13 +140,13 @@ def main() -> None:
                     callback=lambda update, _: answer_handler(update, _, redis_client)),
                 MessageHandler(
                     Filters.text('Новый вопрос'),
-                    callback=lambda update, _: new_question(update, _, redis_client)),
+                    callback=lambda update, _: new_question(update, _, redis_client, quiz)),
                 MessageHandler(
                     Filters.text('Мой счёт'),
                     callback=lambda update, _: count(update, _, redis_client)),
                 MessageHandler(
                     Filters.text('Сдаться'),
-                    callback=lambda update, _: give_up(update, _, redis_client))
+                    callback=lambda update, _: give_up(update, _, redis_client, quiz))
             ]
         },
 

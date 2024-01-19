@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.utils import get_random_id
+
+from parse_quiz_files import parse_quiz_files
 from receive_quest import choose_quest
 
 
@@ -27,6 +29,7 @@ def begin(event, **kwargs):
 
 
 def give_up(event, **kwargs):
+    quiz = kwargs['quiz']
     vk = kwargs['vk']
     keyboard = kwargs['keyboard']
     chat_id = event.user_id
@@ -34,19 +37,19 @@ def give_up(event, **kwargs):
     full_answer = redis_client.get(f'a{chat_id}').decode()
     count = int(redis_client.get(f'c{chat_id}').decode())
     right_answer = full_answer if full_answer else 'Ты не выбрал вопрос'
-    question, answer = choose_quest()
+    question, answer = choose_quest(quiz)
     redis_client.set(f'a{chat_id}', answer)
-    redis_client.set(f'c{chat_id}', 0)
     message = f'Правильный ответ: {right_answer}\nТвой счёт = {count}\nСледующий вопрос:\n{question}'
     send_message(event, message, vk=vk, keyboard=keyboard)
 
 
 def new_question(event, **kwargs):
+    quiz = kwargs['quiz']
     vk = kwargs['vk']
     keyboard = kwargs['keyboard']
     chat_id = event.user_id
     redis_client = kwargs['redis_client']
-    question, answer = choose_quest()
+    question, answer = choose_quest(quiz)
     redis_client.set(f'a{chat_id}', answer)
     message = f'{question}'
     send_message(event, message, vk=vk, keyboard=keyboard)
@@ -90,6 +93,7 @@ def answer(event, **kwargs):
 
 def main():
     load_dotenv()
+    quiz = parse_quiz_files()
     token = os.getenv('VK_KEY')
     password = os.getenv('REDIS_PASSWORD')
     username = os.getenv('REDIS_USERNAME')
@@ -110,9 +114,9 @@ def main():
             if event.text == 'Начать':
                 begin(event, redis_client=redis_client, vk=vk, keyboard=keyboard)
             elif event.text == 'Сдаться':
-                give_up(event, redis_client=redis_client, vk=vk, keyboard=keyboard)
+                give_up(event, quiz=quiz, redis_client=redis_client, vk=vk, keyboard=keyboard)
             elif event.text == 'Новый вопрос':
-                new_question(event, redis_client=redis_client, vk=vk, keyboard=keyboard)
+                new_question(event, quiz=quiz, redis_client=redis_client, vk=vk, keyboard=keyboard)
             elif event.text == 'Мой счёт':
                 count(event, redis_client=redis_client, vk=vk, keyboard=keyboard)
             else:
