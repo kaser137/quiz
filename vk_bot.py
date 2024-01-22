@@ -93,7 +93,8 @@ def answer(event, **kwargs):
 
 def main():
     load_dotenv()
-    quiz = parse_quiz_files()
+    quiz_files_path = os.getenv('QUIZ_FILES_PATH', 'quiz-questions')
+    quiz = parse_quiz_files(quiz_files_path)
     token = os.getenv('VK_KEY')
     password = os.getenv('REDIS_PASSWORD')
     username = os.getenv('REDIS_USERNAME')

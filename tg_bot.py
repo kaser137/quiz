@@ -104,7 +104,6 @@ def end_quiz(update, _, redis_client):
     chat_id = update.message.chat_id
     count = int(redis_client.get(f'c{chat_id}').decode())
     redis_client.set(f'a{chat_id}', '')
-    # redis_client.set(f'c{chat_id}', 0)
     update.message.reply_text(f'Игра окончена. Твой счёт: {count}.\n'
                               f'Нажми /start, чтобы ещё сыграть')
     logger.info(f'{update.message.from_user.first_name} has finished')
@@ -116,7 +115,8 @@ def main() -> None:
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
     )
     load_dotenv()
-    quiz = parse_quiz_files()
+    quiz_files_path = os.getenv('QUIZ_FILES_PATH', 'quiz-questions')
+    quiz = parse_quiz_files(quiz_files_path)
     token = os.getenv('TG_BOT_TOKEN')
     password = os.getenv('REDIS_PASSWORD')
     username = os.getenv('REDIS_USERNAME')

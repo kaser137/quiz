@@ -1,8 +1,9 @@
 import os
 
+from dotenv import load_dotenv
 
-def parse_quiz_files():
-    quiz_files_path = os.getenv('QUIZ_FILES_PATH', 'quiz-questions')
+
+def parse_quiz_files(quiz_files_path):
     files_list = sorted(os.listdir(quiz_files_path))
     quiz = []
     for file in files_list:
@@ -19,3 +20,9 @@ def parse_quiz_files():
             else:
                 i += 1
     return quiz
+
+
+if __name__ == '__main__':
+    load_dotenv()
+    quiz_files_path = os.getenv('QUIZ_FILES_PATH', 'quiz-questions')
+    parse_quiz_files(quiz_files_path)
